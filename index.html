@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Realistic Print Simulator</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; background: #eee; }
+    .container { display: flex; gap: 2rem; margin-top: 2rem; }
+    img, canvas { max-width: 100%; border: 1px solid #ccc; }
+    .panel { flex: 1; }
+  </style>
+</head>
+<body>
+  <h1>🖨️ Realistic Print Look Simulator</h1>
+  <input type="file" id="upload" accept="image/*" />
+
+  <div class="container">
+    <div class="panel">
+      <h3>Original</h3>
+      <img id="original" />
+    </div>
+    <div class="panel">
+      <h3>Simulated Print</h3>
+      <canvas id="canvas"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const upload = document.getElementById('upload');
+    const original = document.getElementById('original');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    upload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function (event) {
+        const img = new Image();
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+
+          for (let i = 0; i < data.length; i += 4) {
+            let r = data[i];
+            let g = data[i + 1];
+            let b = data[i + 2];
+
+            // Simulate gamut compression (clip vibrant colors)
+            const oversat = 1.2;
+            r = Math.min(r, 255 / oversat);
+            g = Math.min(g, 255 / oversat);
+            b = Math.min(b, 255 / oversat);
+
+            // Apply desaturation
+            const avg = 0.3 * r + 0.59 * g + 0.11 * b;
+            r = r * 0.75 + avg * 0.25;
+            g = g * 0.75 + avg * 0.25;
+            b = b * 0.75 + avg * 0.25;
+
+            // Apply print contrast flattening
+            r = r * 0.9 + 15;
+            g = g * 0.9 + 15;
+            b = b * 0.9 + 15;
+
+            // Simulate paper warmth (off-white)
+            r = r * 0.97 + 5;
+            g = g * 0.96 + 8;
+            b = b * 0.94 + 12;
+
+            // Optional: simple dither (simulate halftone dots)
+            const ditherStrength = 0.03;
+            r = Math.round(r + (Math.random() - 0.5) * ditherStrength * 255);
+            g = Math.round(g + (Math.random() - 0.5) * ditherStrength * 255);
+            b = Math.round(b + (Math.random() - 0.5) * ditherStrength * 255);
+
+            // Clamp
+            data[i]     = Math.min(255, Math.max(0, r));
+            data[i + 1] = Math.min(255, Math.max(0, g));
+            data[i + 2] = Math.min(255, Math.max(0, b));
+          }
+
+          ctx.putImageData(imageData, 0, 0);
+          original.src = event.target.result;
+        };
+        img.src = event.target.result;
+      };
+
+      reader.readAsDataURL(file);
+    });
+    document.addEventListener('paste', async (event) => {
+  const items = event.clipboardData.items;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.getElementById('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+
+          // Simulate print like before
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+          for (let i = 0; i < data.length; i += 4) {
+            let r = data[i], g = data[i + 1], b = data[i + 2];
+
+            const avg = 0.3 * r + 0.59 * g + 0.11 * b;
+            r = r * 0.75 + avg * 0.25;
+            g = g * 0.75 + avg * 0.25;
+            b = b * 0.75 + avg * 0.25;
+
+            r = r * 0.9 + 15;
+            g = g * 0.9 + 15;
+            b = b * 0.9 + 15;
+
+            r = r * 0.97 + 5;
+            g = g * 0.96 + 8;
+            b = b * 0.94 + 12;
+
+            data[i] = Math.min(255, Math.max(0, r));
+            data[i + 1] = Math.min(255, Math.max(0, g));
+            data[i + 2] = Math.min(255, Math.max(0, b));
+          }
+          ctx.putImageData(imageData, 0, 0);
+
+          // Optionally show original image too
+          document.getElementById('original').src = e.target.result;
+        };
+        img.src = e.target.result;
+      };
+
+      reader.readAsDataURL(file);
+      break; // only handle the first image
+    }
+  }
+});
+
+  </script>
+</body>
+</html>
